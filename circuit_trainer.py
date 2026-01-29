@@ -7,6 +7,9 @@ with balanced muscle group distribution.
 """
 
 import random
+import yaml
+import os
+from pathlib import Path
 from typing import List, Dict, Tuple
 from dataclasses import dataclass
 
@@ -28,66 +31,41 @@ class Exercise:
             self.equipment = []
 
 
-# Exercise database organized by muscle groups
-EXERCISES = [
-    # Upper Body - Push
-    Exercise("Push-ups", "Start in plank position, lower body until chest nearly touches floor, push back up", "chest", ["shoulders", "triceps"], []),
-    Exercise("Diamond Push-ups", "Push-ups with hands forming a diamond shape, targets triceps more", "triceps", ["chest", "shoulders"], []),
-    Exercise("Pike Push-ups", "Push-ups with hips raised, body forms inverted V, targets shoulders", "shoulders", ["triceps", "core"], []),
-    Exercise("Incline Push-ups", "Push-ups with hands elevated on a surface, easier variation", "chest", ["shoulders", "triceps"], ["box"]),
-    Exercise("Decline Push-ups", "Push-ups with feet elevated, more challenging", "chest", ["shoulders", "triceps"], ["box"]),
+def load_exercises(config_path: str = None) -> List[Exercise]:
+    """
+    Load exercises from YAML configuration file.
     
-    # Upper Body - Pull
-    Exercise("Pull-ups", "Hang from bar, pull body up until chin clears bar", "back", ["biceps"], ["pull_up_bar"]),
-    Exercise("Chin-ups", "Pull-ups with palms facing you, emphasizes biceps", "biceps", ["back"], ["pull_up_bar"]),
-    Exercise("Inverted Rows", "Lie under bar, pull chest to bar while keeping body straight", "back", ["biceps", "core"], ["pull_up_bar"]),
-    Exercise("Superman", "Lie face down, lift arms and legs off ground simultaneously", "back", ["glutes"], []),
+    Args:
+        config_path: Path to the YAML config file. If None, uses exercises.yaml in the same directory.
     
-    # Core
-    Exercise("Plank", "Hold body in straight line supported on forearms and toes", "core", [], [], False),
-    Exercise("Side Plank", "Hold body in straight line supported on one forearm and side of foot", "core", ["obliques"], [], True),
-    Exercise("Mountain Climbers", "In plank position, alternate bringing knees to chest rapidly", "core", ["shoulders", "legs"], []),
-    Exercise("Bicycle Crunches", "Lie on back, bring opposite elbow to knee in cycling motion", "core", ["obliques"], []),
-    Exercise("Russian Twists", "Sit with knees bent, lean back slightly, rotate torso side to side", "core", ["obliques"], []),
-    Exercise("Dead Bug", "Lie on back, extend opposite arm and leg while keeping core engaged", "core", [], []),
-    Exercise("Hollow Body Hold", "Lie on back, lift shoulders and legs off ground, hold position", "core", [], []),
-    Exercise("Leg Raises", "Lie on back, lift legs straight up to 90 degrees, lower slowly", "core", ["hip flexors"], []),
+    Returns:
+        List of Exercise objects
+    """
+    if config_path is None:
+        # Get the directory where this script is located
+        script_dir = Path(__file__).parent
+        config_path = script_dir / "exercises.yaml"
     
-    # Lower Body - Quad Dominant
-    Exercise("Squats", "Stand with feet shoulder-width, lower hips until thighs parallel to floor", "quads", ["glutes", "core"], []),
-    Exercise("Jump Squats", "Squat then explosively jump up, land softly and repeat", "quads", ["glutes", "calves"], []),
-    Exercise("Lunges", "Step forward into lunge position, lower back knee toward ground, push back", "quads", ["glutes", "hamstrings"], []),
-    Exercise("Reverse Lunges", "Step backward into lunge position, more stable than forward lunges", "quads", ["glutes", "hamstrings"], []),
-    Exercise("Walking Lunges", "Perform lunges while moving forward, alternating legs", "quads", ["glutes", "hamstrings"], []),
-    Exercise("Bulgarian Split Squats", "Single leg squat with rear foot elevated on surface", "quads", ["glutes"], ["box"], True),
-    Exercise("Wall Sit", "Slide down wall until thighs parallel to floor, hold position", "quads", ["glutes"], ["wall"]),
+    with open(config_path, 'r') as f:
+        data = yaml.safe_load(f)
     
-    # Lower Body - Hip Dominant
-    Exercise("Glute Bridges", "Lie on back, lift hips by squeezing glutes, hold briefly", "glutes", ["hamstrings", "core"], []),
-    Exercise("Single Leg Glute Bridge", "Glute bridge performed one leg at a time", "glutes", ["hamstrings", "core"], [], True),
-    Exercise("Hip Thrusts", "Similar to glute bridge but with shoulders elevated on surface", "glutes", ["hamstrings"], ["box", "bench"]),
-    Exercise("Romanian Deadlifts", "Hinge at hips, lower torso while keeping back straight", "hamstrings", ["glutes", "back"], []),
-    Exercise("Good Mornings", "Stand with hands behind head, hinge at hips, lower torso", "hamstrings", ["glutes", "back"], []),
+    exercises = []
+    for ex_data in data.get('exercises', []):
+        exercise = Exercise(
+            name=ex_data['name'],
+            description=ex_data['description'],
+            primary_muscle_group=ex_data['primary_muscle_group'],
+            secondary_muscle_groups=ex_data.get('secondary_muscle_groups', []),
+            equipment=ex_data.get('equipment', []),
+            side_specific=ex_data.get('side_specific', False)
+        )
+        exercises.append(exercise)
     
-    # Lower Body - Calves
-    Exercise("Calf Raises", "Stand on toes, raise heels as high as possible, lower slowly", "calves", [], []),
-    Exercise("Jumping Jacks", "Jump feet apart while raising arms overhead, return to start", "calves", ["shoulders", "cardio"], []),
-    Exercise("Single Leg Calf Raises", "Calf raises performed one leg at a time", "calves", [], [], True),
-    
-    # Full Body / Cardio
-    Exercise("Burpees", "Squat, jump back to plank, do push-up, jump forward, jump up", "full_body", ["cardio"], []),
-    Exercise("Jumping Lunges", "Alternate lunges with explosive jumps, switch legs mid-air", "full_body", ["quads", "glutes", "cardio"], []),
-    Exercise("High Knees", "Run in place while bringing knees up toward chest", "full_body", ["cardio", "quads"], []),
-    Exercise("Butt Kicks", "Run in place while kicking heels toward glutes", "full_body", ["cardio", "hamstrings"], []),
-    Exercise("Bear Crawl", "Crawl forward on hands and feet, keeping knees slightly off ground", "full_body", ["core", "shoulders"], []),
-    Exercise("Crab Walk", "Sit with hands behind you, lift hips, walk forward or backward", "full_body", ["shoulders", "glutes", "core"], []),
-    Exercise("Star Jumps", "Jump up spreading arms and legs wide, return to standing", "full_body", ["cardio", "shoulders"], []),
-    
-    # Plyometric
-    Exercise("Box Jumps", "Jump onto elevated surface, step down, repeat", "quads", ["glutes", "calves", "cardio"], ["box"]),
-    Exercise("Tuck Jumps", "Jump up bringing knees to chest, land softly", "quads", ["glutes", "calves", "cardio"], []),
-    Exercise("Broad Jumps", "Jump forward as far as possible, land softly", "quads", ["glutes", "calves"], []),
-]
+    return exercises
+
+
+# Load exercises from YAML configuration file
+EXERCISES = load_exercises()
 
 
 def get_muscle_group_overlap(ex1: Exercise, ex2: Exercise) -> float:

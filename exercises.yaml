@@ -1,0 +1,318 @@
+# Exercise Database for Circuit Training
+# Each exercise has the following fields:
+#   - name: Exercise name
+#   - description: Brief description of how to perform the exercise
+#   - primary_muscle_group: Main muscle group targeted
+#   - secondary_muscle_groups: List of secondary muscle groups (optional, defaults to empty)
+#   - equipment: List of required equipment (optional, defaults to empty)
+#   - side_specific: Whether exercise targets one side and should be paired (optional, defaults to false)
+
+exercises:
+  # Upper Body - Push
+  - name: "Push-ups"
+    description: "Start in plank position, lower body until chest nearly touches floor, push back up"
+    primary_muscle_group: "chest"
+    secondary_muscle_groups: ["shoulders", "triceps"]
+    equipment: []
+    side_specific: false
+
+  - name: "Diamond Push-ups"
+    description: "Push-ups with hands forming a diamond shape, targets triceps more"
+    primary_muscle_group: "triceps"
+    secondary_muscle_groups: ["chest", "shoulders"]
+    equipment: []
+    side_specific: false
+
+  - name: "Pike Push-ups"
+    description: "Push-ups with hips raised, body forms inverted V, targets shoulders"
+    primary_muscle_group: "shoulders"
+    secondary_muscle_groups: ["triceps", "core"]
+    equipment: []
+    side_specific: false
+
+  - name: "Incline Push-ups"
+    description: "Push-ups with hands elevated on a surface, easier variation"
+    primary_muscle_group: "chest"
+    secondary_muscle_groups: ["shoulders", "triceps"]
+    equipment: ["box"]
+    side_specific: false
+
+  - name: "Decline Push-ups"
+    description: "Push-ups with feet elevated, more challenging"
+    primary_muscle_group: "chest"
+    secondary_muscle_groups: ["shoulders", "triceps"]
+    equipment: ["box"]
+    side_specific: false
+
+  # Upper Body - Pull
+  - name: "Pull-ups"
+    description: "Hang from bar, pull body up until chin clears bar"
+    primary_muscle_group: "back"
+    secondary_muscle_groups: ["biceps"]
+    equipment: ["pull_up_bar"]
+    side_specific: false
+
+  - name: "Chin-ups"
+    description: "Pull-ups with palms facing you, emphasizes biceps"
+    primary_muscle_group: "biceps"
+    secondary_muscle_groups: ["back"]
+    equipment: ["pull_up_bar"]
+    side_specific: false
+
+  - name: "Inverted Rows"
+    description: "Lie under bar, pull chest to bar while keeping body straight"
+    primary_muscle_group: "back"
+    secondary_muscle_groups: ["biceps", "core"]
+    equipment: ["pull_up_bar"]
+    side_specific: false
+
+  - name: "Superman"
+    description: "Lie face down, lift arms and legs off ground simultaneously"
+    primary_muscle_group: "back"
+    secondary_muscle_groups: ["glutes"]
+    equipment: []
+    side_specific: false
+
+  # Core
+  - name: "Plank"
+    description: "Hold body in straight line supported on forearms and toes"
+    primary_muscle_group: "core"
+    secondary_muscle_groups: []
+    equipment: []
+    side_specific: false
+
+  - name: "Side Plank"
+    description: "Hold body in straight line supported on one forearm and side of foot"
+    primary_muscle_group: "core"
+    secondary_muscle_groups: ["obliques"]
+    equipment: []
+    side_specific: true
+
+  - name: "Mountain Climbers"
+    description: "In plank position, alternate bringing knees to chest rapidly"
+    primary_muscle_group: "core"
+    secondary_muscle_groups: ["shoulders", "legs"]
+    equipment: []
+    side_specific: false
+
+  - name: "Bicycle Crunches"
+    description: "Lie on back, bring opposite elbow to knee in cycling motion"
+    primary_muscle_group: "core"
+    secondary_muscle_groups: ["obliques"]
+    equipment: []
+    side_specific: false
+
+  - name: "Russian Twists"
+    description: "Sit with knees bent, lean back slightly, rotate torso side to side"
+    primary_muscle_group: "core"
+    secondary_muscle_groups: ["obliques"]
+    equipment: []
+    side_specific: false
+
+  - name: "Dead Bug"
+    description: "Lie on back, extend opposite arm and leg while keeping core engaged"
+    primary_muscle_group: "core"
+    secondary_muscle_groups: []
+    equipment: []
+    side_specific: false
+
+  - name: "Hollow Body Hold"
+    description: "Lie on back, lift shoulders and legs off ground, hold position"
+    primary_muscle_group: "core"
+    secondary_muscle_groups: []
+    equipment: []
+    side_specific: false
+
+  - name: "Leg Raises"
+    description: "Lie on back, lift legs straight up to 90 degrees, lower slowly"
+    primary_muscle_group: "core"
+    secondary_muscle_groups: ["hip flexors"]
+    equipment: []
+    side_specific: false
+
+  # Lower Body - Quad Dominant
+  - name: "Squats"
+    description: "Stand with feet shoulder-width, lower hips until thighs parallel to floor"
+    primary_muscle_group: "quads"
+    secondary_muscle_groups: ["glutes", "core"]
+    equipment: []
+    side_specific: false
+
+  - name: "Jump Squats"
+    description: "Squat then explosively jump up, land softly and repeat"
+    primary_muscle_group: "quads"
+    secondary_muscle_groups: ["glutes", "calves"]
+    equipment: []
+    side_specific: false
+
+  - name: "Lunges"
+    description: "Step forward into lunge position, lower back knee toward ground, push back"
+    primary_muscle_group: "quads"
+    secondary_muscle_groups: ["glutes", "hamstrings"]
+    equipment: []
+    side_specific: false
+
+  - name: "Reverse Lunges"
+    description: "Step backward into lunge position, more stable than forward lunges"
+    primary_muscle_group: "quads"
+    secondary_muscle_groups: ["glutes", "hamstrings"]
+    equipment: []
+    side_specific: false
+
+  - name: "Walking Lunges"
+    description: "Perform lunges while moving forward, alternating legs"
+    primary_muscle_group: "quads"
+    secondary_muscle_groups: ["glutes", "hamstrings"]
+    equipment: []
+    side_specific: false
+
+  - name: "Bulgarian Split Squats"
+    description: "Single leg squat with rear foot elevated on surface"
+    primary_muscle_group: "quads"
+    secondary_muscle_groups: ["glutes"]
+    equipment: ["box"]
+    side_specific: true
+
+  - name: "Wall Sit"
+    description: "Slide down wall until thighs parallel to floor, hold position"
+    primary_muscle_group: "quads"
+    secondary_muscle_groups: ["glutes"]
+    equipment: ["wall"]
+    side_specific: false
+
+  # Lower Body - Hip Dominant
+  - name: "Glute Bridges"
+    description: "Lie on back, lift hips by squeezing glutes, hold briefly"
+    primary_muscle_group: "glutes"
+    secondary_muscle_groups: ["hamstrings", "core"]
+    equipment: []
+    side_specific: false
+
+  - name: "Single Leg Glute Bridge"
+    description: "Glute bridge performed one leg at a time"
+    primary_muscle_group: "glutes"
+    secondary_muscle_groups: ["hamstrings", "core"]
+    equipment: []
+    side_specific: true
+
+  - name: "Hip Thrusts"
+    description: "Similar to glute bridge but with shoulders elevated on surface"
+    primary_muscle_group: "glutes"
+    secondary_muscle_groups: ["hamstrings"]
+    equipment: ["box", "bench"]
+    side_specific: false
+
+  - name: "Romanian Deadlifts"
+    description: "Hinge at hips, lower torso while keeping back straight"
+    primary_muscle_group: "hamstrings"
+    secondary_muscle_groups: ["glutes", "back"]
+    equipment: []
+    side_specific: false
+
+  - name: "Good Mornings"
+    description: "Stand with hands behind head, hinge at hips, lower torso"
+    primary_muscle_group: "hamstrings"
+    secondary_muscle_groups: ["glutes", "back"]
+    equipment: []
+    side_specific: false
+
+  # Lower Body - Calves
+  - name: "Calf Raises"
+    description: "Stand on toes, raise heels as high as possible, lower slowly"
+    primary_muscle_group: "calves"
+    secondary_muscle_groups: []
+    equipment: []
+    side_specific: false
+
+  - name: "Jumping Jacks"
+    description: "Jump feet apart while raising arms overhead, return to start"
+    primary_muscle_group: "calves"
+    secondary_muscle_groups: ["shoulders", "cardio"]
+    equipment: []
+    side_specific: false
+
+  - name: "Single Leg Calf Raises"
+    description: "Calf raises performed one leg at a time"
+    primary_muscle_group: "calves"
+    secondary_muscle_groups: []
+    equipment: []
+    side_specific: true
+
+  # Full Body / Cardio
+  - name: "Burpees"
+    description: "Squat, jump back to plank, do push-up, jump forward, jump up"
+    primary_muscle_group: "full_body"
+    secondary_muscle_groups: ["cardio"]
+    equipment: []
+    side_specific: false
+
+  - name: "Jumping Lunges"
+    description: "Alternate lunges with explosive jumps, switch legs mid-air"
+    primary_muscle_group: "full_body"
+    secondary_muscle_groups: ["quads", "glutes", "cardio"]
+    equipment: []
+    side_specific: false
+
+  - name: "High Knees"
+    description: "Run in place while bringing knees up toward chest"
+    primary_muscle_group: "full_body"
+    secondary_muscle_groups: ["cardio", "quads"]
+    equipment: []
+    side_specific: false
+
+  - name: "Butt Kicks"
+    description: "Run in place while kicking heels toward glutes"
+    primary_muscle_group: "full_body"
+    secondary_muscle_groups: ["cardio", "hamstrings"]
+    equipment: []
+    side_specific: false
+
+  - name: "Bear Crawl"
+    description: "Crawl forward on hands and feet, keeping knees slightly off ground"
+    primary_muscle_group: "full_body"
+    secondary_muscle_groups: ["core", "shoulders"]
+    equipment: []
+    side_specific: false
+
+  - name: "Crab Walk"
+    description: "Sit with hands behind you, lift hips, walk forward or backward"
+    primary_muscle_group: "full_body"
+    secondary_muscle_groups: ["shoulders", "glutes", "core"]
+    equipment: []
+    side_specific: false
+
+  - name: "Star Jumps"
+    description: "Jump up spreading arms and legs wide, return to standing"
+    primary_muscle_group: "full_body"
+    secondary_muscle_groups: ["cardio", "shoulders"]
+    equipment: []
+    side_specific: false
+
+  - name: "Turkish Getups"
+    description: "Lie on back holding weight overhead, get up to standing position while keeping weight raised, then reverse back down"
+    primary_muscle_group: "full_body"
+    secondary_muscle_groups: ["core", "shoulders", "glutes"]
+    equipment: ["weight"]
+    side_specific: true
+
+  # Plyometric
+  - name: "Box Jumps"
+    description: "Jump onto elevated surface, step down, repeat"
+    primary_muscle_group: "quads"
+    secondary_muscle_groups: ["glutes", "calves", "cardio"]
+    equipment: ["box"]
+    side_specific: false
+
+  - name: "Tuck Jumps"
+    description: "Jump up bringing knees to chest, land softly"
+    primary_muscle_group: "quads"
+    secondary_muscle_groups: ["glutes", "calves", "cardio"]
+    equipment: []
+    side_specific: false
+
+  - name: "Broad Jumps"
+    description: "Jump forward as far as possible, land softly"
+    primary_muscle_group: "quads"
+    secondary_muscle_groups: ["glutes", "calves"]
+    equipment: []
+    side_specific: false
