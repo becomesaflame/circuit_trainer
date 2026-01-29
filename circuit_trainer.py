@@ -23,6 +23,7 @@ class Exercise:
     secondary_muscle_groups: List[str] = None
     equipment: List[str] = None
     side_specific: bool = False
+    ankle_impact: bool = False
     
     def __post_init__(self):
         if self.secondary_muscle_groups is None:
@@ -57,7 +58,8 @@ def load_exercises(config_path: str = None) -> List[Exercise]:
             primary_muscle_group=ex_data['primary_muscle_group'],
             secondary_muscle_groups=ex_data.get('secondary_muscle_groups', []),
             equipment=ex_data.get('equipment', []),
-            side_specific=ex_data.get('side_specific', False)
+            side_specific=ex_data.get('side_specific', False),
+            ankle_impact=ex_data.get('ankle_impact', False)
         )
         exercises.append(exercise)
     
@@ -113,6 +115,23 @@ def create_paired_exercise(exercise: Exercise, side: str) -> Exercise:
     )
 
 
+def filter_exercises_by_ankle_impact(exercises: List[Exercise], avoid_ankle_impact: bool = False) -> List[Exercise]:
+    """
+    Filter exercises to exclude those with ankle impact if requested.
+    
+    Args:
+        exercises: List of exercises to filter
+        avoid_ankle_impact: If True, remove exercises with ankle impact
+    
+    Returns:
+        Filtered list of exercises
+    """
+    if not avoid_ankle_impact:
+        return exercises
+    
+    return [ex for ex in exercises if not ex.ankle_impact]
+
+
 def filter_exercises_by_equipment(exercises: List[Exercise], available_equipment: List[str]) -> List[Exercise]:
     """
     Filter exercises to only include those that can be performed with available equipment.
@@ -139,7 +158,7 @@ def filter_exercises_by_equipment(exercises: List[Exercise], available_equipment
     return filtered
 
 
-def generate_circuit(num_exercises: int = 8, avoid_consecutive_overlap: float = 0.5, available_equipment: List[str] = None) -> List[Exercise]:
+def generate_circuit(num_exercises: int = 8, avoid_consecutive_overlap: float = 0.5, available_equipment: List[str] = None, avoid_ankle_impact: bool = False) -> List[Exercise]:
     """
     Generate a randomized circuit training list with balanced muscle groups.
     
@@ -147,15 +166,20 @@ def generate_circuit(num_exercises: int = 8, avoid_consecutive_overlap: float = 
         num_exercises: Number of exercises to include in the circuit
         avoid_consecutive_overlap: Maximum allowed overlap between consecutive exercises (0-1)
         available_equipment: List of available equipment (None means all exercises available)
+        avoid_ankle_impact: If True, exclude exercises with ankle impact (jumping, running, etc.)
     
     Returns:
         List of Exercise objects in randomized order
     """
+    # Start with all exercises
+    exercises_pool = EXERCISES
+    
+    # Filter exercises by ankle impact first
+    exercises_pool = filter_exercises_by_ankle_impact(exercises_pool, avoid_ankle_impact)
+    
     # Filter exercises by available equipment
     if available_equipment is not None:
-        exercises_pool = filter_exercises_by_equipment(EXERCISES, available_equipment)
-    else:
-        exercises_pool = EXERCISES
+        exercises_pool = filter_exercises_by_equipment(exercises_pool, available_equipment)
     
     if num_exercises > len(exercises_pool):
         num_exercises = len(exercises_pool)
@@ -286,8 +310,13 @@ def main():
         "-e", "--equipment",
         nargs="+",
         default=None,
-        help="Available equipment (space-separated). Options: pull_up_bar, box, bench, wall. "
+        help="Available equipment (space-separated). Options: pull_up_bar, box, bench, wall, weight. "
              "If not specified, all exercises are available. If empty list provided, only bodyweight exercises."
+    )
+    parser.add_argument(
+        "--no-ankle-impact",
+        action="store_true",
+        help="Exclude exercises that involve ankle impact (jumping, running, etc.)"
     )
     
     args = parser.parse_args()
@@ -301,7 +330,7 @@ def main():
         else:
             workout_name = "Circuit Training Workout"
         
-        circuit = generate_circuit(args.num_exercises, args.overlap_threshold, available_equipment)
+        circuit = generate_circuit(args.num_exercises, args.overlap_threshold, available_equipment, args.no_ankle_impact)
         print_circuit(circuit, workout_name, args.verbose)
         
         if i < args.count - 1:

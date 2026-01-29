@@ -144,6 +144,7 @@ exercises:
     secondary_muscle_groups: ["glutes", "calves"]
     equipment: []
     side_specific: false
+    ankle_impact: true
 
   - name: "Lunges"
     description: "Step forward into lunge position, lower back knee toward ground, push back"
@@ -230,6 +231,7 @@ exercises:
     secondary_muscle_groups: ["shoulders", "cardio"]
     equipment: []
     side_specific: false
+    ankle_impact: true
 
   - name: "Single Leg Calf Raises"
     description: "Calf raises performed one leg at a time"
@@ -245,6 +247,7 @@ exercises:
     secondary_muscle_groups: ["cardio"]
     equipment: []
     side_specific: false
+    ankle_impact: true
 
   - name: "Jumping Lunges"
     description: "Alternate lunges with explosive jumps, switch legs mid-air"
@@ -252,6 +255,7 @@ exercises:
     secondary_muscle_groups: ["quads", "glutes", "cardio"]
     equipment: []
     side_specific: false
+    ankle_impact: true
 
   - name: "High Knees"
     description: "Run in place while bringing knees up toward chest"
@@ -259,6 +263,7 @@ exercises:
     secondary_muscle_groups: ["cardio", "quads"]
     equipment: []
     side_specific: false
+    ankle_impact: true
 
   - name: "Butt Kicks"
     description: "Run in place while kicking heels toward glutes"
@@ -266,6 +271,7 @@ exercises:
     secondary_muscle_groups: ["cardio", "hamstrings"]
     equipment: []
     side_specific: false
+    ankle_impact: true
 
   - name: "Bear Crawl"
     description: "Crawl forward on hands and feet, keeping knees slightly off ground"
@@ -287,6 +293,7 @@ exercises:
     secondary_muscle_groups: ["cardio", "shoulders"]
     equipment: []
     side_specific: false
+    ankle_impact: true
 
   - name: "Turkish Getups"
     description: "Lie on back holding weight overhead, get up to standing position while keeping weight raised, then reverse back down"
@@ -302,6 +309,7 @@ exercises:
     secondary_muscle_groups: ["glutes", "calves", "cardio"]
     equipment: ["box"]
     side_specific: false
+    ankle_impact: true
 
   - name: "Tuck Jumps"
     description: "Jump up bringing knees to chest, land softly"
@@ -309,6 +317,7 @@ exercises:
     secondary_muscle_groups: ["glutes", "calves", "cardio"]
     equipment: []
     side_specific: false
+    ankle_impact: true
 
   - name: "Broad Jumps"
     description: "Jump forward as far as possible, land softly"

@@ -24,3 +24,10 @@
 - Use type hints where appropriate
 - Add docstrings to functions and classes
 - Keep functions focused and testable
+
+## Project Structure
+
+- Exercise data is stored in `exercises.yaml`
+- Main script: `circuit_trainer.py`
+- Tests: `test_circuit_trainer.py`
+- Always update tests when modifying code

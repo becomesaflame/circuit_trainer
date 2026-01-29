@@ -20,6 +20,7 @@ from circuit_trainer import (
     get_muscle_group_overlap,
     create_paired_exercise,
     filter_exercises_by_equipment,
+    filter_exercises_by_ankle_impact,
     generate_circuit,
     print_circuit,
 )
@@ -37,6 +38,7 @@ class TestExercise(unittest.TestCase):
         self.assertEqual(ex.secondary_muscle_groups, [])
         self.assertEqual(ex.equipment, [])
         self.assertEqual(ex.side_specific, False)
+        self.assertEqual(ex.ankle_impact, False)
     
     def test_exercise_initialization_with_all_fields(self):
         """Test Exercise initialization with all fields specified."""
@@ -46,12 +48,14 @@ class TestExercise(unittest.TestCase):
             "chest",
             ["shoulders", "triceps"],
             ["box"],
-            True
+            True,
+            True  # ankle_impact
         )
         self.assertEqual(ex.name, "Push-ups")
         self.assertEqual(ex.secondary_muscle_groups, ["shoulders", "triceps"])
         self.assertEqual(ex.equipment, ["box"])
         self.assertEqual(ex.side_specific, True)
+        self.assertEqual(ex.ankle_impact, True)
     
     def test_exercises_database_not_empty(self):
         """Test that EXERCISES database is populated."""
@@ -70,6 +74,7 @@ class TestExercise(unittest.TestCase):
             self.assertIsInstance(ex.secondary_muscle_groups, list)
             self.assertIsInstance(ex.equipment, list)
             self.assertIsInstance(ex.side_specific, bool)
+            self.assertIsInstance(ex.ankle_impact, bool)
 
 
 class TestMuscleGroupOverlap(unittest.TestCase):
@@ -198,6 +203,73 @@ class TestFilterExercisesByEquipment(unittest.TestCase):
         # Hip Thrusts should be included if both box and bench are available
         if hip_thrusts:
             self.assertTrue(any("Hip Thrust" in ex.name for ex in filtered))
+
+
+class TestFilterExercisesByAnkleImpact(unittest.TestCase):
+    """Test ankle impact filtering."""
+    
+    def test_filter_without_ankle_impact_flag(self):
+        """Test that filter returns all exercises when flag is False."""
+        filtered = filter_exercises_by_ankle_impact(EXERCISES, False)
+        self.assertEqual(len(filtered), len(EXERCISES))
+    
+    def test_filter_with_ankle_impact_flag(self):
+        """Test that filter removes exercises with ankle impact when flag is True."""
+        filtered = filter_exercises_by_ankle_impact(EXERCISES, True)
+        self.assertLess(len(filtered), len(EXERCISES))
+        
+        # Verify no ankle impact exercises in filtered list
+        for ex in filtered:
+            self.assertFalse(ex.ankle_impact, f"{ex.name} should not have ankle impact")
+    
+    def test_filter_removes_jumping_exercises(self):
+        """Test that jumping exercises are filtered out."""
+        filtered = filter_exercises_by_ankle_impact(EXERCISES, True)
+        filtered_names = [ex.name for ex in filtered]
+        
+        # Known jumping exercises with ankle_impact=True should be filtered out
+        # Check which exercises actually have ankle_impact set
+        jumping_exercises_with_impact = [
+            ex.name for ex in EXERCISES 
+            if "Jump" in ex.name and ex.ankle_impact
+        ]
+        
+        for jump_ex in jumping_exercises_with_impact:
+            self.assertNotIn(jump_ex, filtered_names, 
+                           f"{jump_ex} should be filtered out")
+    
+    def test_filter_removes_running_exercises(self):
+        """Test that running exercises are filtered out."""
+        filtered = filter_exercises_by_ankle_impact(EXERCISES, True)
+        filtered_names = [ex.name for ex in filtered]
+        
+        # Known running exercises should be filtered out
+        running_exercises = ["High Knees", "Butt Kicks"]
+        for run_ex in running_exercises:
+            self.assertNotIn(run_ex, filtered_names,
+                           f"{run_ex} should be filtered out")
+    
+    def test_filter_removes_burpees(self):
+        """Test that burpees (which involve jumping) are filtered out."""
+        filtered = filter_exercises_by_ankle_impact(EXERCISES, True)
+        filtered_names = [ex.name for ex in filtered]
+        self.assertNotIn("Burpees", filtered_names)
+    
+    def test_filter_keeps_non_ankle_impact_exercises(self):
+        """Test that exercises without ankle impact are kept."""
+        filtered = filter_exercises_by_ankle_impact(EXERCISES, True)
+        filtered_names = [ex.name for ex in filtered]
+        
+        # Known non-ankle impact exercises should be kept
+        safe_exercises = ["Push-ups", "Squats", "Plank", "Glute Bridges"]
+        for safe_ex in safe_exercises:
+            self.assertIn(safe_ex, filtered_names,
+                        f"{safe_ex} should not be filtered out")
+    
+    def test_filter_empty_list(self):
+        """Test filtering an empty exercise list."""
+        filtered = filter_exercises_by_ankle_impact([], True)
+        self.assertEqual(len(filtered), 0)
 
 
 class TestGenerateCircuit(unittest.TestCase):
