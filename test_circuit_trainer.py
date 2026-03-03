@@ -11,6 +11,7 @@ import sys
 import io
 import importlib.util
 from pathlib import Path
+import tempfile
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
@@ -28,6 +29,9 @@ filter_exercises_by_equipment = interval_trainer.filter_exercises_by_equipment
 filter_exercises_by_ankle_impact = interval_trainer.filter_exercises_by_ankle_impact
 generate_circuit = interval_trainer.generate_circuit
 print_circuit = interval_trainer.print_circuit
+get_program_defaults = interval_trainer.get_program_defaults
+load_or_create_local_config = interval_trainer.load_or_create_local_config
+merge_cli_options_with_config = interval_trainer.merge_cli_options_with_config
 
 
 class TestExercise(unittest.TestCase):
@@ -439,6 +443,74 @@ class TestRerollFeature(unittest.TestCase):
 
         self.assertEqual(circuit[1].name, "D")
         mock_print_circuit.assert_called_once()
+
+
+class TestLocalConfig(unittest.TestCase):
+    """Test local config behavior and CLI override merging."""
+
+    def test_load_or_create_local_config_creates_defaults(self):
+        """Config file should be created with program defaults if missing."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / ".interval-trainer.config.yaml"
+            self.assertFalse(config_path.exists())
+            config = load_or_create_local_config(config_path)
+
+            self.assertTrue(config_path.exists())
+            self.assertEqual(config, get_program_defaults())
+            self.assertEqual(config["equipment"], [])  # bodyweight-only default
+
+    def test_load_or_create_local_config_uses_existing_values(self):
+        """Existing config values should be loaded and normalized."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / ".interval-trainer.config.yaml"
+            config_path.write_text(
+                "num_exercises: 14\n"
+                "overlap_threshold: 0.3\n"
+                "count: 2\n"
+                "verbose: true\n"
+                "equipment:\n"
+                "  - weight\n"
+                "no_ankle_impact: true\n",
+                encoding="utf-8",
+            )
+
+            config = load_or_create_local_config(config_path)
+            self.assertEqual(config["num_exercises"], 14)
+            self.assertEqual(config["overlap_threshold"], 0.3)
+            self.assertEqual(config["count"], 2)
+            self.assertTrue(config["verbose"])
+            self.assertEqual(config["equipment"], ["weight"])
+            self.assertTrue(config["no_ankle_impact"])
+
+    def test_merge_cli_options_with_config_overrides_and_persists_shape(self):
+        """CLI args should override config and normalize equipment flags."""
+        config = get_program_defaults()
+        cli_args = {
+            "num_exercises": 12,
+            "all_equipment": True,
+            "verbose": True,
+        }
+
+        effective, overrides = merge_cli_options_with_config(config, cli_args)
+
+        self.assertEqual(overrides["num_exercises"], 12)
+        self.assertIsNone(overrides["equipment"])
+        self.assertTrue(overrides["verbose"])
+        self.assertEqual(effective["num_exercises"], 12)
+        self.assertIsNone(effective["equipment"])
+        self.assertTrue(effective["verbose"])
+
+    def test_merge_cli_options_with_config_bodyweight_flag(self):
+        """Bodyweight flag should force equipment to empty list."""
+        config = get_program_defaults()
+        config["equipment"] = ["weight"]
+        effective, overrides = merge_cli_options_with_config(
+            config,
+            {"bodyweight_only": True},
+        )
+
+        self.assertEqual(overrides["equipment"], [])
+        self.assertEqual(effective["equipment"], [])
 
 
 class TestPrintCircuit(unittest.TestCase):

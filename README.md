@@ -53,23 +53,51 @@ python3 interval-trainer.py -v
 ## Command-Line Options
 
 - `-n, --num-exercises`  
-  Number of exercises to generate (default: `10`)
+  Number of exercises to generate (default from local config, initial value: `10`)
 - `-o, --overlap-threshold`  
-  Max allowed muscle-group overlap between consecutive exercises, from `0` to `1` (default: `0.5`)
+  Max allowed muscle-group overlap between consecutive exercises, from `0` to `1` (default from local config, initial value: `0.5`)
 - `-c, --count`  
-  Number of different circuits to generate (default: `1`)
-- `-v, --verbose`  
-  Print detailed multi-line output per exercise
+  Number of different circuits to generate (default from local config, initial value: `1`)
+- `-v, --verbose` / `--no-verbose`  
+  Enable or disable detailed multi-line output per exercise
 - `-e, --equipment`  
   Space-separated available equipment (examples: `pull_up_bar box bench wall weight`)
-  Default behavior when omitted: all exercises are allowed (including both equipment and bodyweight exercises).
+  When omitted, value comes from local config. Initial default is bodyweight-only (`[]`).
+- `--all-equipment`  
+  Allow all exercises regardless of equipment requirements (stores `equipment: null` in config)
+- `--bodyweight-only`  
+  Force bodyweight-only workouts (stores `equipment: []` in config)
 - `--no-ankle-impact`  
   Exclude exercises marked with ankle impact (jumping/running style moves)
+- `--allow-ankle-impact`  
+  Allow ankle-impact exercises
 
 Example with filters:
 
 ```bash
 python3 interval-trainer.py -n 10 -e pull_up_bar box --no-ankle-impact
+```
+
+## Local Config Defaults
+
+The script stores defaults in a local config file:
+
+- `.interval-trainer.config.yaml` (created automatically in the project folder)
+
+Behavior:
+- If no config file exists, it is created with program defaults.
+- Program default for equipment is bodyweight-only.
+- Whenever you pass CLI options, those values are written to the local config file.
+- Future runs use the saved config values as defaults.
+
+Examples:
+
+```bash
+# Set preferred defaults for future runs
+python3 interval-trainer.py -n 12 --all-equipment --no-ankle-impact
+
+# Next run uses those saved defaults, even without flags
+python3 interval-trainer.py
 ```
 
 ## Interactive Re-roll Feature

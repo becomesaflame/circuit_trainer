@@ -69,6 +69,83 @@ def load_exercises(config_path: str = None) -> List[Exercise]:
 
 # Load exercises from YAML configuration file
 EXERCISES = load_exercises()
+CONFIG_FILE_NAME = ".interval-trainer.config.yaml"
+
+
+def get_program_defaults() -> Dict[str, object]:
+    """Return immutable program defaults for CLI options."""
+    return {
+        "num_exercises": 10,
+        "overlap_threshold": 0.5,
+        "count": 1,
+        "verbose": False,
+        "equipment": [],  # Default to bodyweight-only at the script level
+        "no_ankle_impact": False,
+    }
+
+
+def save_local_config(config: Dict[str, object], config_path: Optional[Path] = None):
+    """Persist config values to the local config file."""
+    path = config_path or (Path(__file__).parent / CONFIG_FILE_NAME)
+    with open(path, "w") as f:
+        yaml.safe_dump(config, f, sort_keys=False)
+
+
+def load_or_create_local_config(config_path: Optional[Path] = None) -> Dict[str, object]:
+    """
+    Load local config from disk, creating it with program defaults if missing.
+    """
+    defaults = get_program_defaults()
+    path = config_path or (Path(__file__).parent / CONFIG_FILE_NAME)
+
+    if not path.exists():
+        save_local_config(defaults, path)
+        return defaults.copy()
+
+    with open(path, "r") as f:
+        loaded = yaml.safe_load(f) or {}
+
+    if not isinstance(loaded, dict):
+        loaded = {}
+
+    normalized = defaults.copy()
+    for key in defaults:
+        if key in loaded:
+            normalized[key] = loaded[key]
+
+    # Keep equipment config constrained to expected shapes.
+    if normalized["equipment"] is not None and not isinstance(normalized["equipment"], list):
+        normalized["equipment"] = defaults["equipment"]
+
+    # Backfill missing/invalid keys for future runs.
+    save_local_config(normalized, path)
+    return normalized
+
+
+def merge_cli_options_with_config(
+    config: Dict[str, object],
+    cli_args: Dict[str, object]
+) -> Tuple[Dict[str, object], Dict[str, object]]:
+    """
+    Merge CLI-provided options onto config values.
+
+    Returns:
+        (effective_options, normalized_overrides)
+    """
+    normalized_overrides: Dict[str, object] = {}
+
+    if cli_args.get("all_equipment"):
+        normalized_overrides["equipment"] = None
+    elif cli_args.get("bodyweight_only"):
+        normalized_overrides["equipment"] = []
+
+    for key in get_program_defaults():
+        if key in cli_args:
+            normalized_overrides[key] = cli_args[key]
+
+    effective = config.copy()
+    effective.update(normalized_overrides)
+    return effective, normalized_overrides
 
 
 def get_muscle_group_overlap(ex1: Exercise, ex2: Exercise) -> float:
@@ -480,69 +557,109 @@ def print_circuit(circuit: List[Exercise], workout_name: str = "Circuit Training
 def main():
     """Main function to generate and display circuit workouts."""
     import argparse
-    
+    config_path = Path(__file__).parent / CONFIG_FILE_NAME
+    config = load_or_create_local_config(config_path)
+
     parser = argparse.ArgumentParser(
         description="Generate randomized circuit training workouts with balanced muscle groups"
     )
     parser.add_argument(
         "-n", "--num-exercises",
         type=int,
-        default=10,
-        help="Number of exercises in the circuit (default: 8)"
+        default=argparse.SUPPRESS,
+        help="Number of exercises in the circuit (default from local config, initial: 10)"
     )
     parser.add_argument(
         "-o", "--overlap-threshold",
         type=float,
-        default=0.5,
-        help="Maximum allowed muscle group overlap between consecutive exercises (0-1, default: 0.5)"
+        default=argparse.SUPPRESS,
+        help="Max allowed overlap between consecutive exercises (default from local config, initial: 0.5)"
     )
     parser.add_argument(
         "-c", "--count",
         type=int,
-        default=1,
-        help="Number of different circuits to generate (default: 1)"
+        default=argparse.SUPPRESS,
+        help="Number of different circuits to generate (default from local config, initial: 1)"
     )
     parser.add_argument(
         "-v", "--verbose",
         action="store_true",
-        help="Show detailed output with muscle groups (default: compact single-line format)"
+        default=argparse.SUPPRESS,
+        help="Show detailed output with muscle groups"
+    )
+    parser.add_argument(
+        "--no-verbose",
+        action="store_false",
+        dest="verbose",
+        default=argparse.SUPPRESS,
+        help="Disable detailed output with muscle groups"
     )
     parser.add_argument(
         "-e", "--equipment",
         nargs="+",
-        default=None,
+        default=argparse.SUPPRESS,
         help="Available equipment (space-separated). Options: pull_up_bar, box, bench, wall, weight. "
-             "If not specified, all exercises are available. If empty list provided, only bodyweight exercises."
+             "If omitted, the value from local config is used (initial default is bodyweight-only)."
+    )
+    parser.add_argument(
+        "--all-equipment",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Allow all exercises regardless of equipment requirements"
+    )
+    parser.add_argument(
+        "--bodyweight-only",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Use only exercises with no equipment requirements"
     )
     parser.add_argument(
         "--no-ankle-impact",
         action="store_true",
+        default=argparse.SUPPRESS,
         help="Exclude exercises that involve ankle impact (jumping, running, etc.)"
     )
-    
+    parser.add_argument(
+        "--allow-ankle-impact",
+        action="store_false",
+        dest="no_ankle_impact",
+        default=argparse.SUPPRESS,
+        help="Allow ankle-impact exercises"
+    )
+
     args = parser.parse_args()
-    
-    # Handle equipment argument
-    available_equipment = args.equipment if args.equipment is not None else None
-    
-    for i in range(args.count):
-        if args.count > 1:
+    cli_args = vars(args)
+    effective_options, overrides = merge_cli_options_with_config(config, cli_args)
+    if overrides:
+        updated_config = config.copy()
+        updated_config.update(overrides)
+        save_local_config(updated_config, config_path)
+
+    available_equipment = effective_options["equipment"]
+
+    for i in range(effective_options["count"]):
+        if effective_options["count"] > 1:
             workout_name = f"Circuit Training Workout #{i+1}"
         else:
             workout_name = "Circuit Training Workout"
         
-        circuit = generate_circuit(args.num_exercises, args.overlap_threshold, available_equipment, args.no_ankle_impact)
-        print_circuit(circuit, workout_name, args.verbose)
+        circuit = generate_circuit(
+            effective_options["num_exercises"],
+            effective_options["overlap_threshold"],
+            available_equipment,
+            effective_options["no_ankle_impact"],
+        )
+        print_circuit(circuit, workout_name, effective_options["verbose"])
         prompt_for_rerolls(
             circuit,
             workout_name,
-            args.verbose,
-            args.overlap_threshold,
+            effective_options["verbose"],
+            effective_options["overlap_threshold"],
             available_equipment,
-            args.no_ankle_impact,
+            effective_options["no_ankle_impact"],
         )
         
-        if i < args.count - 1:
+        if i < effective_options["count"] - 1:
             print("\n" + "-"*60 + "\n")
 
 
