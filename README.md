@@ -5,7 +5,7 @@ Generate randomized circuit training workouts from a YAML exercise library, with
 - equipment filtering
 - optional ankle-impact filtering
 - automatic left/right pairing for side-specific movements
-- interactive per-exercise re-rolls
+- full-screen TUI workflow for rerolls and settings
 
 ## Requirements
 
@@ -26,13 +26,19 @@ python3 -m pip install pyyaml
 
 ## Basic Usage
 
-Generate one workout with default settings:
+Launch the TUI (default in an interactive terminal):
 
 ```bash
 python3 interval-trainer.py
 ```
 
-Generate a 12-exercise workout:
+Use classic CLI output mode (useful for tests/automation):
+
+```bash
+python3 interval-trainer.py --cli
+```
+
+Generate a 12-exercise workout and persist that as the new default:
 
 ```bash
 python3 interval-trainer.py -n 12
@@ -71,6 +77,10 @@ python3 interval-trainer.py -v
   Exclude exercises marked with ankle impact (jumping/running style moves)
 - `--allow-ankle-impact`  
   Allow ankle-impact exercises
+- `--cli`  
+  Force classic CLI mode (print workout + prompt reroll by number)
+- `--tui`  
+  Force full-screen TUI mode
 
 Example with filters:
 
@@ -100,19 +110,22 @@ python3 interval-trainer.py -n 12 --all-equipment --no-ankle-impact
 python3 interval-trainer.py
 ```
 
-## Interactive Re-roll Feature
+## TUI Workflow
 
-After a workout is printed (in an interactive terminal), the script asks:
+In TUI mode, the workout screen includes:
 
-`Enter exercise number to reroll (press Enter to keep this workout):`
+- `Reroll` - enter an exercise number to reroll (paired left/right rerolls both)
+- `Settings` - edit all defaults in-app
+- `New workout` - regenerate with current settings
+- `Quit` - exit
 
-- Enter a number (for example `4`) to re-roll that exercise.
-- Press Enter with no input to keep the workout and continue.
-- If the selected exercise is part of a left/right pair, both sides are re-rolled together.
-
-Notes:
-- Re-roll keeps the same number of slots.
-- Re-roll respects the same equipment and ankle-impact filters used to build the workout.
+Settings includes:
+- `num_exercises`
+- `overlap_threshold`
+- `count`
+- `verbose`
+- `no_ankle_impact`
+- `equipment` via arrow-key selector with Y/N toggles
 
 ## Side-Specific Exercises
 

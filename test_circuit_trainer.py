@@ -32,6 +32,8 @@ print_circuit = interval_trainer.print_circuit
 get_program_defaults = interval_trainer.get_program_defaults
 load_or_create_local_config = interval_trainer.load_or_create_local_config
 merge_cli_options_with_config = interval_trainer.merge_cli_options_with_config
+should_use_tui = interval_trainer.should_use_tui
+get_all_equipment_items = interval_trainer.get_all_equipment_items
 
 
 class TestExercise(unittest.TestCase):
@@ -511,6 +513,32 @@ class TestLocalConfig(unittest.TestCase):
 
         self.assertEqual(overrides["equipment"], [])
         self.assertEqual(effective["equipment"], [])
+
+
+class TestInterfaceModeSelection(unittest.TestCase):
+    """Test TUI vs CLI mode selection logic."""
+
+    def test_should_use_tui_false_when_cli_flag_set(self):
+        self.assertFalse(should_use_tui({"cli": True}))
+
+    def test_should_use_tui_true_when_tui_flag_set(self):
+        self.assertTrue(should_use_tui({"tui": True}))
+
+    def test_should_use_tui_uses_tty_state_without_flags(self):
+        with patch("sys.stdin.isatty", return_value=True), patch("sys.stdout.isatty", return_value=True):
+            self.assertTrue(should_use_tui({}))
+        with patch("sys.stdin.isatty", return_value=False), patch("sys.stdout.isatty", return_value=True):
+            self.assertFalse(should_use_tui({}))
+
+
+class TestEquipmentCatalog(unittest.TestCase):
+    """Test derived equipment catalog used by the TUI selector."""
+
+    def test_get_all_equipment_items_sorted_unique(self):
+        items = get_all_equipment_items()
+        self.assertEqual(items, sorted(items))
+        self.assertEqual(len(items), len(set(items)))
+        self.assertIn("weight", items)
 
 
 class TestPrintCircuit(unittest.TestCase):

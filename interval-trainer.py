@@ -10,6 +10,7 @@ import random
 import yaml
 import os
 import sys
+import curses
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
@@ -146,6 +147,12 @@ def merge_cli_options_with_config(
     effective = config.copy()
     effective.update(normalized_overrides)
     return effective, normalized_overrides
+
+
+def get_all_equipment_items() -> List[str]:
+    """Return sorted unique equipment keys from the exercise database."""
+    equipment = {item for exercise in EXERCISES for item in exercise.equipment}
+    return sorted(equipment)
 
 
 def get_muscle_group_overlap(ex1: Exercise, ex2: Exercise) -> float:
@@ -554,6 +561,286 @@ def print_circuit(circuit: List[Exercise], workout_name: str = "Circuit Training
             print(f"{i}. {exercise.name} - {exercise.description}")
 
 
+def get_equipment_display_label(equipment: Optional[List[str]]) -> str:
+    """Format equipment mode label for UI/printing."""
+    if equipment is None:
+        return "All equipment (no filter)"
+    if not equipment:
+        return "Bodyweight only"
+    return ", ".join(equipment)
+
+
+def build_workout(circuit_index: int, options: Dict[str, object]) -> Tuple[str, List[Exercise]]:
+    """Generate a circuit and its display title from current options."""
+    if options["count"] > 1:
+        workout_name = f"Circuit Training Workout #{circuit_index + 1}"
+    else:
+        workout_name = "Circuit Training Workout"
+
+    circuit = generate_circuit(
+        options["num_exercises"],
+        options["overlap_threshold"],
+        options["equipment"],
+        options["no_ankle_impact"],
+    )
+    return workout_name, circuit
+
+
+def run_cli_mode(effective_options: Dict[str, object]):
+    """Run classic print-based CLI workflow."""
+    for i in range(effective_options["count"]):
+        workout_name, circuit = build_workout(i, effective_options)
+        print_circuit(circuit, workout_name, effective_options["verbose"])
+        prompt_for_rerolls(
+            circuit,
+            workout_name,
+            effective_options["verbose"],
+            effective_options["overlap_threshold"],
+            effective_options["equipment"],
+            effective_options["no_ankle_impact"],
+        )
+
+        if i < effective_options["count"] - 1:
+            print("\n" + "-" * 60 + "\n")
+
+
+def prompt_line(stdscr, prompt: str) -> str:
+    """Prompt for a single line of text within curses UI."""
+    height, width = stdscr.getmaxyx()
+    prompt_text = prompt[: max(0, width - 1)]
+    stdscr.move(height - 1, 0)
+    stdscr.clrtoeol()
+    stdscr.addstr(height - 1, 0, prompt_text)
+    curses.echo()
+    stdscr.refresh()
+    raw = stdscr.getstr(height - 1, min(len(prompt_text), width - 1), max(1, width - len(prompt_text) - 1))
+    curses.noecho()
+    return raw.decode("utf-8", errors="ignore").strip()
+
+
+def show_equipment_selector(stdscr, current_equipment: Optional[List[str]]) -> Optional[List[str]]:
+    """
+    Interactive equipment selector.
+    - First row toggles "All equipment".
+    - Remaining rows toggle specific equipment items.
+    """
+    equipment_items = get_all_equipment_items()
+    selected = set(equipment_items if current_equipment is None else current_equipment)
+    allow_all = current_equipment is None
+    cursor_index = 0
+
+    while True:
+        stdscr.clear()
+        height, width = stdscr.getmaxyx()
+        stdscr.addstr(0, 0, "Equipment Settings (Arrows: move, Space: toggle, Enter: save, q: cancel)")
+
+        rows = [("All equipment (no filter)", allow_all)]
+        rows.extend([(item, item in selected) for item in equipment_items])
+        max_rows = max(1, height - 2)
+
+        if cursor_index >= len(rows):
+            cursor_index = len(rows) - 1
+
+        start = max(0, min(cursor_index - max_rows + 1, len(rows) - max_rows))
+        visible_rows = rows[start:start + max_rows]
+
+        for line_idx, (label, is_checked) in enumerate(visible_rows, start=1):
+            row_index = start + line_idx - 1
+            marker = ">" if row_index == cursor_index else " "
+            checkbox = "[Y]" if is_checked else "[N]"
+            display = f"{marker} {checkbox} {label}"
+            stdscr.addstr(line_idx, 0, display[: max(0, width - 1)])
+
+        key = stdscr.getch()
+        if key in (curses.KEY_UP, ord("k")):
+            cursor_index = (cursor_index - 1) % len(rows)
+        elif key in (curses.KEY_DOWN, ord("j")):
+            cursor_index = (cursor_index + 1) % len(rows)
+        elif key in (ord(" "),):
+            if cursor_index == 0:
+                allow_all = not allow_all
+                if allow_all:
+                    selected = set(equipment_items)
+            else:
+                allow_all = False
+                item = equipment_items[cursor_index - 1]
+                if item in selected:
+                    selected.remove(item)
+                else:
+                    selected.add(item)
+        elif key in (10, 13, curses.KEY_ENTER):
+            if allow_all:
+                return None
+            return sorted(selected)
+        elif key in (ord("q"), 27):
+            return current_equipment
+
+
+def show_settings_menu(stdscr, options: Dict[str, object]) -> bool:
+    """
+    Settings editor. Returns True if settings were changed.
+    """
+    menu_items = [
+        "num_exercises",
+        "overlap_threshold",
+        "count",
+        "verbose",
+        "no_ankle_impact",
+        "equipment",
+        "back",
+    ]
+    cursor = 0
+    changed = False
+
+    while True:
+        stdscr.clear()
+        height, width = stdscr.getmaxyx()
+        stdscr.addstr(0, 0, "Settings (Arrows: move, Enter: edit/toggle, q: back)")
+
+        for idx, item in enumerate(menu_items):
+            marker = ">" if idx == cursor else " "
+            if item == "back":
+                value = "Save and return"
+            elif item == "equipment":
+                value = get_equipment_display_label(options["equipment"])
+            else:
+                value = str(options[item])
+            line = f"{marker} {item}: {value}" if item != "back" else f"{marker} {value}"
+            stdscr.addstr(idx + 1, 0, line[: max(0, width - 1)])
+
+        key = stdscr.getch()
+        if key in (curses.KEY_UP, ord("k")):
+            cursor = (cursor - 1) % len(menu_items)
+        elif key in (curses.KEY_DOWN, ord("j")):
+            cursor = (cursor + 1) % len(menu_items)
+        elif key in (ord("q"), 27):
+            return changed
+        elif key in (10, 13, curses.KEY_ENTER):
+            selected = menu_items[cursor]
+            if selected == "back":
+                return changed
+            if selected in ("verbose", "no_ankle_impact"):
+                options[selected] = not options[selected]
+                changed = True
+            elif selected == "equipment":
+                new_equipment = show_equipment_selector(stdscr, options["equipment"])
+                if new_equipment != options["equipment"]:
+                    options["equipment"] = new_equipment
+                    changed = True
+            elif selected == "num_exercises":
+                value = prompt_line(stdscr, "num_exercises (int): ")
+                if value:
+                    try:
+                        parsed = int(value)
+                        if parsed >= 0:
+                            options["num_exercises"] = parsed
+                            changed = True
+                    except ValueError:
+                        pass
+            elif selected == "count":
+                value = prompt_line(stdscr, "count (int >= 1): ")
+                if value:
+                    try:
+                        parsed = int(value)
+                        if parsed >= 1:
+                            options["count"] = parsed
+                            changed = True
+                    except ValueError:
+                        pass
+            elif selected == "overlap_threshold":
+                value = prompt_line(stdscr, "overlap_threshold (0.0 - 1.0): ")
+                if value:
+                    try:
+                        parsed = float(value)
+                        if 0.0 <= parsed <= 1.0:
+                            options["overlap_threshold"] = parsed
+                            changed = True
+                    except ValueError:
+                        pass
+
+
+def run_tui_mode(initial_options: Dict[str, object], config_path: Path):
+    """Run full-screen interactive TUI workflow."""
+
+    def tui_main(stdscr):
+        curses.curs_set(0)
+        stdscr.keypad(True)
+
+        options = initial_options.copy()
+        workout_index = 0
+        workout_name, circuit = build_workout(workout_index, options)
+        status_message = "Workout generated."
+
+        while True:
+            stdscr.clear()
+            height, width = stdscr.getmaxyx()
+
+            header = f"{workout_name} | Equipment: {get_equipment_display_label(options['equipment'])}"
+            stdscr.addstr(0, 0, header[: max(0, width - 1)])
+
+            line = 1
+            for idx, exercise in enumerate(circuit, start=1):
+                if line >= height - 3:
+                    break
+                row = f"{idx}. {exercise.name} - {exercise.description}"
+                stdscr.addstr(line, 0, row[: max(0, width - 1)])
+                line += 1
+
+            footer = "[R]eroll  [S]ettings  [N]ew workout  [Q]uit"
+            stdscr.addstr(height - 2, 0, footer[: max(0, width - 1)])
+            stdscr.addstr(height - 1, 0, status_message[: max(0, width - 1)])
+            stdscr.refresh()
+
+            key = stdscr.getch()
+            if key in (ord("q"), ord("Q")):
+                break
+            if key in (ord("n"), ord("N")):
+                workout_index = (workout_index + 1) % max(1, options["count"])
+                workout_name, circuit = build_workout(workout_index, options)
+                status_message = "Generated a new workout."
+                continue
+            if key in (ord("s"), ord("S")):
+                changed = show_settings_menu(stdscr, options)
+                if changed:
+                    save_local_config(options, config_path)
+                    workout_index = 0
+                    workout_name, circuit = build_workout(workout_index, options)
+                    status_message = "Settings saved and workout regenerated."
+                else:
+                    status_message = "Settings unchanged."
+                continue
+            if key in (ord("r"), ord("R")):
+                value = prompt_line(stdscr, "Exercise number to reroll: ")
+                if not value.isdigit():
+                    status_message = "Please enter a valid exercise number."
+                    continue
+                exercise_number = int(value)
+                rerolled_numbers, success = reroll_exercise_group(
+                    circuit,
+                    exercise_number,
+                    options["overlap_threshold"],
+                    options["equipment"],
+                    options["no_ankle_impact"],
+                )
+                if not success:
+                    status_message = "Unable to reroll that exercise with current settings."
+                elif len(rerolled_numbers) == 2:
+                    status_message = f"Re-rolled paired exercises #{rerolled_numbers[0]} and #{rerolled_numbers[1]}."
+                else:
+                    status_message = f"Re-rolled exercise #{rerolled_numbers[0]}."
+
+    curses.wrapper(tui_main)
+
+
+def should_use_tui(parsed_args: Dict[str, object]) -> bool:
+    """Decide whether to launch TUI mode."""
+    if parsed_args.get("cli"):
+        return False
+    if parsed_args.get("tui"):
+        return True
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
 def main():
     """Main function to generate and display circuit workouts."""
     import argparse
@@ -626,6 +913,18 @@ def main():
         default=argparse.SUPPRESS,
         help="Allow ankle-impact exercises"
     )
+    parser.add_argument(
+        "--cli",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Force classic CLI mode (useful for automation/testing)"
+    )
+    parser.add_argument(
+        "--tui",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Force full-screen TUI mode"
+    )
 
     args = parser.parse_args()
     cli_args = vars(args)
@@ -634,33 +933,15 @@ def main():
         updated_config = config.copy()
         updated_config.update(overrides)
         save_local_config(updated_config, config_path)
+    if should_use_tui(cli_args):
+        try:
+            run_tui_mode(effective_options, config_path)
+            return
+        except curses.error:
+            # If terminal does not support curses, fall back gracefully.
+            pass
 
-    available_equipment = effective_options["equipment"]
-
-    for i in range(effective_options["count"]):
-        if effective_options["count"] > 1:
-            workout_name = f"Circuit Training Workout #{i+1}"
-        else:
-            workout_name = "Circuit Training Workout"
-        
-        circuit = generate_circuit(
-            effective_options["num_exercises"],
-            effective_options["overlap_threshold"],
-            available_equipment,
-            effective_options["no_ankle_impact"],
-        )
-        print_circuit(circuit, workout_name, effective_options["verbose"])
-        prompt_for_rerolls(
-            circuit,
-            workout_name,
-            effective_options["verbose"],
-            effective_options["overlap_threshold"],
-            available_equipment,
-            effective_options["no_ankle_impact"],
-        )
-        
-        if i < effective_options["count"] - 1:
-            print("\n" + "-"*60 + "\n")
+    run_cli_mode(effective_options)
 
 
 if __name__ == "__main__":
