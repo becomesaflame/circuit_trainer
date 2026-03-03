@@ -158,7 +158,7 @@ def filter_exercises_by_equipment(exercises: List[Exercise], available_equipment
     return filtered
 
 
-def generate_circuit(num_exercises: int = 8, avoid_consecutive_overlap: float = 0.5, available_equipment: List[str] = None, avoid_ankle_impact: bool = False) -> List[Exercise]:
+def generate_circuit(num_exercises: int = 10, avoid_consecutive_overlap: float = 0.5, available_equipment: List[str] = None, avoid_ankle_impact: bool = False) -> List[Exercise]:
     """
     Generate a randomized circuit training list with balanced muscle groups.
     
@@ -286,7 +286,7 @@ def main():
     parser.add_argument(
         "-n", "--num-exercises",
         type=int,
-        default=8,
+        default=10,
         help="Number of exercises in the circuit (default: 8)"
     )
     parser.add_argument(
