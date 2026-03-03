@@ -9,8 +9,9 @@ with balanced muscle group distribution.
 import random
 import yaml
 import os
+import sys
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 
 
@@ -113,6 +114,206 @@ def create_paired_exercise(exercise: Exercise, side: str) -> Exercise:
         equipment=exercise.equipment.copy(),
         side_specific=False  # The paired version is no longer side-specific
     )
+
+
+def split_side_prefix(exercise_name: str) -> Tuple[Optional[str], str]:
+    """
+    Split side prefix from an exercise name.
+
+    Returns:
+        Tuple of (side, base_name) where side is "Left"/"Right" or None.
+    """
+    if exercise_name.startswith("Left "):
+        return "Left", exercise_name[5:]
+    if exercise_name.startswith("Right "):
+        return "Right", exercise_name[6:]
+    return None, exercise_name
+
+
+def get_paired_indices(circuit: List[Exercise], index: int) -> List[int]:
+    """
+    Get one or two indices representing the selected reroll group.
+    If the selected exercise has an opposite-side pair in the circuit,
+    both indices are returned.
+    """
+    selected = circuit[index]
+    side, base_name = split_side_prefix(selected.name)
+
+    if side is None:
+        return [index]
+
+    opposite_side = "Right" if side == "Left" else "Left"
+    opposite_name = f"{opposite_side} {base_name}"
+
+    for i, ex in enumerate(circuit):
+        if i != index and ex.name == opposite_name:
+            return sorted([index, i])
+
+    return [index]
+
+
+def get_filtered_exercise_pool(
+    available_equipment: List[str] = None,
+    avoid_ankle_impact: bool = False
+) -> List[Exercise]:
+    """Return the global exercise pool with active filters applied."""
+    exercises_pool = filter_exercises_by_ankle_impact(EXERCISES, avoid_ankle_impact)
+    if available_equipment is not None:
+        exercises_pool = filter_exercises_by_equipment(exercises_pool, available_equipment)
+    return exercises_pool
+
+
+def choose_replacement_exercises(
+    candidates: List[Exercise],
+    group_size: int,
+    previous_exercise: Optional[Exercise],
+    next_exercise: Optional[Exercise],
+    overlap_threshold: float
+) -> Optional[List[Exercise]]:
+    """
+    Choose one replacement exercise (group_size=1) or one paired side-specific
+    replacement (group_size=2), favoring overlap threshold when possible.
+    """
+    if not candidates:
+        return None
+
+    shuffled = candidates.copy()
+    random.shuffle(shuffled)
+    best_choice = None
+    best_score = float("inf")
+
+    for exercise in shuffled:
+        if group_size == 2:
+            sides = ["Left", "Right"]
+            random.shuffle(sides)
+            replacement_group = [
+                create_paired_exercise(exercise, sides[0]),
+                create_paired_exercise(exercise, sides[1]),
+            ]
+        else:
+            replacement_group = [exercise]
+
+        overlap_prev = 0.0
+        if previous_exercise is not None:
+            overlap_prev = get_muscle_group_overlap(previous_exercise, replacement_group[0])
+
+        overlap_next = 0.0
+        if next_exercise is not None:
+            overlap_next = get_muscle_group_overlap(replacement_group[-1], next_exercise)
+
+        max_overlap = max(overlap_prev, overlap_next)
+
+        if overlap_prev <= overlap_threshold and overlap_next <= overlap_threshold:
+            return replacement_group
+
+        if max_overlap < best_score:
+            best_score = max_overlap
+            best_choice = replacement_group
+
+    return best_choice
+
+
+def reroll_exercise_group(
+    circuit: List[Exercise],
+    exercise_number: int,
+    overlap_threshold: float,
+    available_equipment: List[str] = None,
+    avoid_ankle_impact: bool = False
+) -> Tuple[List[int], bool]:
+    """
+    Re-roll one exercise (1-based index), or both if it has an opposite-side pair.
+
+    Returns:
+        (rerolled_indices, success)
+    """
+    index = exercise_number - 1
+    if index < 0 or index >= len(circuit):
+        return [], False
+
+    group_indices = get_paired_indices(circuit, index)
+    group_size = len(group_indices)
+
+    group_start = min(group_indices)
+    group_end = max(group_indices)
+    previous_exercise = circuit[group_start - 1] if group_start > 0 else None
+    next_exercise = circuit[group_end + 1] if group_end + 1 < len(circuit) else None
+
+    # Avoid duplicate base exercises in the resulting circuit where possible.
+    # Side-specific displayed variants are normalized by removing Left/Right prefix.
+    remaining_base_names = {
+        split_side_prefix(ex.name)[1]
+        for i, ex in enumerate(circuit)
+        if i not in group_indices
+    }
+    original_base_names = {split_side_prefix(circuit[i].name)[1] for i in group_indices}
+
+    filtered_pool = get_filtered_exercise_pool(available_equipment, avoid_ankle_impact)
+    if group_size == 2:
+        candidates = [ex for ex in filtered_pool if ex.side_specific]
+    else:
+        candidates = [ex for ex in filtered_pool if not ex.side_specific]
+
+    candidates = [
+        ex for ex in candidates
+        if ex.name not in remaining_base_names and ex.name not in original_base_names
+    ]
+
+    replacement_group = choose_replacement_exercises(
+        candidates,
+        group_size,
+        previous_exercise,
+        next_exercise,
+        overlap_threshold,
+    )
+    if replacement_group is None:
+        return group_indices, False
+
+    # Replace in place while preserving circuit length.
+    circuit[group_start:group_end + 1] = replacement_group
+    return [i + 1 for i in range(group_start, group_end + 1)], True
+
+
+def prompt_for_rerolls(
+    circuit: List[Exercise],
+    workout_name: str,
+    verbose: bool,
+    overlap_threshold: float,
+    available_equipment: List[str] = None,
+    avoid_ankle_impact: bool = False
+):
+    """Interactive prompt to reroll exercise numbers after initial generation."""
+    if not sys.stdin.isatty():
+        return
+
+    while True:
+        user_input = input(
+            "\nEnter exercise number to reroll (press Enter to keep this workout): "
+        ).strip()
+        if not user_input:
+            break
+        if not user_input.isdigit():
+            print("Please enter a valid exercise number.")
+            continue
+
+        exercise_number = int(user_input)
+        rerolled_numbers, success = reroll_exercise_group(
+            circuit,
+            exercise_number,
+            overlap_threshold,
+            available_equipment,
+            avoid_ankle_impact,
+        )
+
+        if not success:
+            print("Unable to reroll that exercise with current constraints. Try another number.")
+            continue
+
+        if len(rerolled_numbers) == 2:
+            print(f"Re-rolled paired exercises #{rerolled_numbers[0]} and #{rerolled_numbers[1]}.")
+        else:
+            print(f"Re-rolled exercise #{rerolled_numbers[0]}.")
+
+        print_circuit(circuit, workout_name, verbose)
 
 
 def filter_exercises_by_ankle_impact(exercises: List[Exercise], avoid_ankle_impact: bool = False) -> List[Exercise]:
@@ -332,6 +533,14 @@ def main():
         
         circuit = generate_circuit(args.num_exercises, args.overlap_threshold, available_equipment, args.no_ankle_impact)
         print_circuit(circuit, workout_name, args.verbose)
+        prompt_for_rerolls(
+            circuit,
+            workout_name,
+            args.verbose,
+            args.overlap_threshold,
+            available_equipment,
+            args.no_ankle_impact,
+        )
         
         if i < args.count - 1:
             print("\n" + "-"*60 + "\n")

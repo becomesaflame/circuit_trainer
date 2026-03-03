@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive tests for circuit_trainer.py
+Comprehensive tests for interval-trainer.py
 
 Run with: python3 -m pytest test_circuit_trainer.py -v
 Or: python3 test_circuit_trainer.py
@@ -9,21 +9,25 @@ Or: python3 test_circuit_trainer.py
 import unittest
 import sys
 import io
+import importlib.util
+from pathlib import Path
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
 # Import the module to test
-import circuit_trainer
-from circuit_trainer import (
-    Exercise,
-    EXERCISES,
-    get_muscle_group_overlap,
-    create_paired_exercise,
-    filter_exercises_by_equipment,
-    filter_exercises_by_ankle_impact,
-    generate_circuit,
-    print_circuit,
-)
+MODULE_PATH = Path(__file__).parent / "interval-trainer.py"
+SPEC = importlib.util.spec_from_file_location("interval_trainer", MODULE_PATH)
+interval_trainer = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(interval_trainer)
+
+Exercise = interval_trainer.Exercise
+EXERCISES = interval_trainer.EXERCISES
+get_muscle_group_overlap = interval_trainer.get_muscle_group_overlap
+create_paired_exercise = interval_trainer.create_paired_exercise
+filter_exercises_by_equipment = interval_trainer.filter_exercises_by_equipment
+filter_exercises_by_ankle_impact = interval_trainer.filter_exercises_by_ankle_impact
+generate_circuit = interval_trainer.generate_circuit
+print_circuit = interval_trainer.print_circuit
 
 
 class TestExercise(unittest.TestCase):
@@ -370,6 +374,71 @@ class TestGenerateCircuit(unittest.TestCase):
         circuit = generate_circuit(num_exercises=10, avoid_consecutive_overlap=0.1)
         self.assertGreater(len(circuit), 0)
         # With very strict threshold, algorithm should still work
+
+
+class TestRerollFeature(unittest.TestCase):
+    """Test rerolling individual exercises and side-specific pairs."""
+
+    def test_reroll_single_exercise_by_number(self):
+        """Test rerolling a single non-side-specific exercise."""
+        ex_a = Exercise("A", "Desc", "core", [], [], False)
+        ex_b = Exercise("B", "Desc", "chest", [], [], False)
+        ex_c = Exercise("C", "Desc", "quads", [], [], False)
+        ex_d = Exercise("D", "Desc", "back", [], [], False)
+        circuit = [ex_a, ex_b, ex_c]
+
+        with patch.object(interval_trainer, "EXERCISES", [ex_a, ex_b, ex_c, ex_d]):
+            rerolled_numbers, success = interval_trainer.reroll_exercise_group(
+                circuit, 2, overlap_threshold=0.5
+            )
+
+        self.assertTrue(success)
+        self.assertEqual(rerolled_numbers, [2])
+        self.assertEqual(circuit[1].name, "D")
+
+    def test_reroll_side_specific_rerolls_both_sides(self):
+        """Test rerolling one side of a pair replaces both sides."""
+        side_old = Exercise("Old Split Squat", "Desc", "quads", [], [], True)
+        side_new = Exercise("New Split Squat", "Desc", "quads", [], [], True)
+        filler = Exercise("Push-ups", "Desc", "chest", [], [], False)
+        circuit = [
+            create_paired_exercise(side_old, "Left"),
+            create_paired_exercise(side_old, "Right"),
+            filler,
+        ]
+
+        with patch.object(interval_trainer, "EXERCISES", [side_old, side_new, filler]):
+            rerolled_numbers, success = interval_trainer.reroll_exercise_group(
+                circuit, 1, overlap_threshold=0.5
+            )
+
+        self.assertTrue(success)
+        self.assertEqual(rerolled_numbers, [1, 2])
+        self.assertTrue(circuit[0].name.endswith("New Split Squat"))
+        self.assertTrue(circuit[1].name.endswith("New Split Squat"))
+        self.assertNotEqual(circuit[0].name[:5], circuit[1].name[:5])  # Left vs Right prefixes
+
+    def test_prompt_for_rerolls_accepts_number_and_updates_circuit(self):
+        """Test interactive prompt rerolls selected number then exits on Enter."""
+        ex_a = Exercise("A", "Desc", "core", [], [], False)
+        ex_b = Exercise("B", "Desc", "chest", [], [], False)
+        ex_c = Exercise("C", "Desc", "quads", [], [], False)
+        ex_d = Exercise("D", "Desc", "back", [], [], False)
+        circuit = [ex_a, ex_b, ex_c]
+
+        with patch.object(interval_trainer, "EXERCISES", [ex_a, ex_b, ex_c, ex_d]), \
+             patch("sys.stdin.isatty", return_value=True), \
+             patch("builtins.input", side_effect=["2", ""]), \
+             patch.object(interval_trainer, "print_circuit") as mock_print_circuit:
+            interval_trainer.prompt_for_rerolls(
+                circuit,
+                "Test Workout",
+                False,
+                overlap_threshold=0.5,
+            )
+
+        self.assertEqual(circuit[1].name, "D")
+        mock_print_circuit.assert_called_once()
 
 
 class TestPrintCircuit(unittest.TestCase):
